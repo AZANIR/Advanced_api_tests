@@ -1,0 +1,75 @@
+name: CI - Conditional Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.filter.outputs.tests }}
+      src: ${{ steps.filter.outputs.src }}
+      config: ${{ steps.filter.outputs.config }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Detect changes
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            tests:
+              - 'tests/**'
+            src:
+              - 'src/**'
+            config:
+              - 'jest.config.js'
+              - 'package.json'
+
+  run-tests:
+    name: Run Tests (Conditional)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.tests == 'true' || needs.detect-changes.outputs.src == 'true' || needs.detect-changes.outputs.config == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conditional-test-results
+          path: reports/**
+
+  skip-notification:
+    name: Skip Notification
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.tests != 'true' && needs.detect-changes.outputs.src != 'true' && needs.detect-changes.outputs.config != 'true'
+    
+    steps:
+      - name: Skip message
+        run: |
+          echo "## Tests Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "No relevant changes detected. Tests skipped." >> $GITHUB_STEP_SUMMARY
+
