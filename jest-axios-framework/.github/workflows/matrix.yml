@@ -1,5 +1,23 @@
+# ============================================================================
+# CI - Matrix Builds
+# ============================================================================
+# Matrix build workflow для тестування на різних версіях Node.js та тестових сюїтах.
+# 
+# Переваги:
+# - Перевірка сумісності з різними версіями Node.js
+# - Паралельний запуск різних тестових сюїтів
+# - Детальні звіти для кожної комбінації
+# 
+# Тестує:
+# - Node.js версії: 16, 18, 20
+# - Тестові сюїти: smoke, functional, negative
+# 
+# Всього: 3 версії × 3 сюїти = 9 паралельних запусків
+# ============================================================================
+
 name: CI - Matrix Builds
 
+# Тригери для запуску workflow
 on:
   push:
     branches: [ main, develop ]
@@ -7,31 +25,46 @@ on:
     branches: [ main, develop ]
 
 jobs:
+  # ========================================================================
+  # Job: Тестування з матрицею версій та сюїтів
+  # ========================================================================
   test:
     name: Test on Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
     
+    # Матрична стратегія для паралельного запуску
     strategy:
       matrix:
+        # Версії Node.js для тестування
         node-version: ['16', '18', '20']
+        # Тестові сюїти для запуску
         test-suite: ['smoke', 'functional', 'negative']
+      # fail-fast: false - продовжує виконувати інші комбінації навіть якщо одна провалилася
+      fail-fast: false
     
     steps:
+      # Крок 1: Отримання коду
       - name: Checkout code
         uses: actions/checkout@v4
       
+      # Крок 2: Налаштування Node.js з версією з матриці
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
       
+      # Крок 3: Встановлення залежностей
       - name: Install dependencies
         run: npm ci
       
+      # Крок 4: Запуск конкретного тестового сюїту
+      # Використовує npm run test:{suite} для запуску окремого сюїту
       - name: Run ${{ matrix.test-suite }} tests
         run: npm run test:${{ matrix.test-suite }}
       
+      # Крок 5: Збереження звітів з унікальним ім'ям
+      # Ім'я артефакту включає версію Node.js та назву сюїту
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,4 +74,3 @@ jobs:
             reports/html/**
             reports/junit/**
             reports/coverage/**
-

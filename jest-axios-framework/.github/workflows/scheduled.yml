@@ -1,46 +1,79 @@
+# ============================================================================
+# Scheduled Tests
+# ============================================================================
+# Workflow для регулярного запуску тестів за розкладом.
+# 
+# Використання:
+# - Нічні тести для моніторингу стабільності
+# - Регулярна перевірка регресій
+# - Довгостроковий моніторинг покриття коду
+# 
+# Запускається:
+# - Автоматично щодня о 2:00 UTC (4:00 за київським часом)
+# - Вручну через GitHub Actions UI (workflow_dispatch)
+# 
+# Зберігає артефакти 30 днів для аналізу трендів.
+# ============================================================================
+
 name: Scheduled Tests
 
+# Тригери для запуску workflow
 on:
+  # Розклад запуску (cron формат)
   schedule:
     # Запуск щодня о 2:00 UTC (4:00 за київським часом)
+    # Формат: хвилина година день місяць день_тижня
     - cron: '0 2 * * *'
-  workflow_dispatch: # Дозволяє запускати вручну
+  # Дозволяє запускати workflow вручну через GitHub Actions UI
+  workflow_dispatch:
 
 jobs:
+  # ========================================================================
+  # Job: Нічні тести
+  # ========================================================================
   nightly-tests:
     name: Nightly Test Run
     runs-on: ubuntu-latest
     
     steps:
+      # Крок 1: Отримання коду
       - name: Checkout code
         uses: actions/checkout@v4
       
+      # Крок 2: Налаштування Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
       
+      # Крок 3: Встановлення залежностей
       - name: Install dependencies
         run: npm ci
       
+      # Крок 4: Запуск всіх тестів
       - name: Run all tests
         run: npm test
       
+      # Крок 5: Запуск тестів з покриттям коду
+      # Дозволяє відстежувати зміни покриття коду з часом
       - name: Run coverage
         run: npm run test:coverage
       
+      # Крок 6: Збереження всіх звітів
+      # retention-days: 30 - зберігає артефакти 30 днів для аналізу
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nightly-test-results-${{ github.run_number }}
           path: |
-            reports/html/**
-            reports/junit/**
-            reports/coverage/**
-          retention-days: 30
+            reports/html/**      # HTML звіти
+            reports/junit/**      # JUnit XML звіти
+            reports/coverage/**  # Coverage звіти
+          retention-days: 30     # Зберігати 30 днів
       
+      # Крок 7: Створення summary з інформацією про запуск
       - name: Create summary
         if: always()
         run: |
@@ -48,4 +81,3 @@ jobs:
           echo "Run Number: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "Date: $(date)" >> $GITHUB_STEP_SUMMARY
           echo "Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-

@@ -1,44 +1,70 @@
+# ============================================================================
+# Full Pipeline - Tests + Deploy
+# ============================================================================
+# Повний CI/CD pipeline, який:
+# 1. Запускає всі тести з покриттям коду
+# 2. Зберігає звіти як артефакти
+# 3. Публікує результати тестів у PR
+# 4. Автоматично деплоїть HTML звіти на GitHub Pages (тільки для main branch)
+# ============================================================================
+
 name: Full Pipeline - Tests + Deploy
 
+# Тригери для запуску workflow
 on:
+  # Запуск при push в main branch
   push:
     branches: [ main ]
+  # Запуск при створенні/оновленні PR в main branch
   pull_request:
     branches: [ main ]
+  # Дозволяє запускати workflow вручну через GitHub UI
   workflow_dispatch:
 
 jobs:
+  # ========================================================================
+  # Job: Запуск тестів та генерація звітів
+  # ========================================================================
   test:
     name: Run All Tests
     runs-on: ubuntu-latest
     
     steps:
+      # Крок 1: Отримання коду з репозиторію
       - name: Checkout code
         uses: actions/checkout@v4
       
+      # Крок 2: Налаштування Node.js з кешуванням залежностей
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: '18'  # Версія Node.js для запуску тестів
+          cache: 'npm'        # Кешування node_modules для прискорення збірки
       
+      # Крок 3: Встановлення залежностей
+      # npm ci використовується замість npm install для швидшої та надійнішої збірки
       - name: Install dependencies
         run: npm ci
       
+      # Крок 4: Запуск тестів з покриттям коду
+      # Змінні середовища встановлюються для правильної конфігурації репортерів
       - name: Run tests with coverage
         run: npm run test:coverage
         env:
-          CI: true
-          GITHUB_ACTIONS: true
+          CI: true              # Вказує що запуск в CI середовищі
+          GITHUB_ACTIONS: true  # Дозволяє репортерам визначити GitHub Actions
       
+      # Крок 5: Збереження HTML звіту як артефакт
+      # if: always() - зберігає артефакт навіть якщо тести провалилися
       - name: Upload HTML report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: html-report
-          path: reports/html/**
-          retention-days: 30
+          path: reports/html/**  # Всі HTML файли звіту
+          retention-days: 30     # Зберігати артефакт 30 днів
       
+      # Крок 6: Збереження JUnit XML звіту для інтеграції з CI системами
       - name: Upload JUnit report
         if: always()
         uses: actions/upload-artifact@v4
@@ -47,6 +73,7 @@ jobs:
           path: reports/junit/**
           retention-days: 30
       
+      # Крок 7: Збереження звіту про покриття коду
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -55,68 +82,84 @@ jobs:
           path: reports/coverage/**
           retention-days: 30
       
+      # Крок 8: Публікація результатів тестів у PR як коментар
+      # Дозволяє бачити результати тестів безпосередньо в Pull Request
       - name: Publish test results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: 'reports/junit/**/*.xml'
           check_name: 'Test Results'
-          comment_mode: create-new
-          report_individual_runs: true
+          comment_mode: create-new      # Створює новий коментар для кожного запуску
+          report_individual_runs: true  # Показує результати окремих запусків
 
+  # ========================================================================
+  # Job: Деплой HTML звітів на GitHub Pages
+  # ========================================================================
   deploy-pages:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
+    # Запускається тільки після успішного завершення тестів
     needs: test
+    # Деплой тільки для main branch при push (не для PR)
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    # Необхідні permissions для публікації на GitHub Pages
     permissions:
-      contents: read
-      pages: write
-      id-token: write
+      contents: read    # Читання коду
+      pages: write     # Запис на GitHub Pages
+      id-token: write  # Для OIDC автентифікації
     
     steps:
+      # Крок 1: Отримання коду
       - name: Checkout code
         uses: actions/checkout@v4
       
+      # Крок 2: Завантаження HTML звіту з артефактів попереднього job
       - name: Download HTML report
         uses: actions/download-artifact@v4
         with:
           name: html-report
           path: reports/html
       
+      # Крок 3: Налаштування GitHub Pages
+      # Конфігурує середовище для публікації на Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
-      - name: Create index page
+      # Крок 4: Підготовка файлів для GitHub Pages
+      # jest-html-reporters генерує report.html або report-{timestamp}.html
+      # GitHub Pages потребує index.html як стартову сторінку
+      - name: Prepare site for GitHub Pages
         run: |
+          # Створюємо директорію для GitHub Pages
           mkdir -p _site
+          
+          # Копіюємо всі файли HTML звіту (включаючи CSS, JS, дані)
           cp -r reports/html/* _site/ || true
-          cat > _site/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>API Test Reports</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 40px; }
-              h1 { color: #333; }
-              a { color: #0366d6; text-decoration: none; }
-              a:hover { text-decoration: underline; }
-            </style>
-          </head>
-          <body>
-            <h1>API Test Reports</h1>
-            <p>Latest test report: <a href="report.html">report.html</a></p>
-            <p>Generated: $(date)</p>
-            <p>Commit: ${{ github.sha }}</p>
-          </body>
-          </html>
-          EOF
+          
+          # Знаходимо останній згенерований звіт та створюємо index.html
+          # jest-html-reporters в CI генерує report-{timestamp}.html
+          if [ -f "_site/report.html" ]; then
+            # Якщо є простий report.html - використовуємо його
+            cp _site/report.html _site/index.html
+          else
+            # Якщо є файли з timestamp (report-*.html), беремо останній
+            LATEST_REPORT=$(ls -t _site/report-*.html 2>/dev/null | head -1)
+            if [ -n "$LATEST_REPORT" ]; then
+              cp "$LATEST_REPORT" _site/index.html
+            fi
+          fi
       
+      # Крок 5: Завантаження артефакту для GitHub Pages
+      # Створює артефакт з директорії _site для публікації
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
       
+      # Крок 6: Деплой на GitHub Pages
+      # Публікує артефакт на GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

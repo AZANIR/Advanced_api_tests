@@ -1,39 +1,72 @@
+# ============================================================================
+# CI - Basic Tests
+# ============================================================================
+# Базовий CI workflow для запуску тестів.
+# Простий та швидкий варіант для перевірки коду при push та PR.
+# 
+# Генерує та зберігає:
+# - HTML звіти (reports/html/)
+# - JUnit XML звіти (reports/junit/)
+# - Coverage звіти (reports/coverage/)
+# ============================================================================
+
 name: CI - Basic Tests
 
+# Тригери для запуску workflow
 on:
+  # Запуск при push в main або develop branch
   push:
     branches: [ main, develop ]
+  # Запуск при створенні/оновленні PR в main або develop branch
   pull_request:
     branches: [ main, develop ]
 
 jobs:
+  # ========================================================================
+  # Job: Запуск тестів
+  # ========================================================================
   test:
     name: Run Tests
     runs-on: ubuntu-latest
     
     steps:
+      # Крок 1: Отримання коду з репозиторію
       - name: Checkout code
         uses: actions/checkout@v4
       
+      # Крок 2: Налаштування Node.js з кешуванням залежностей
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: '22'  # Версія Node.js для запуску тестів
+          cache: 'npm'        # Кешування node_modules для прискорення збірки
       
+      # Крок 3: Встановлення залежностей
+      # npm i використовується для швидкої збірки (npm ci більш надійний для production)
       - name: Install dependencies
         run: npm i
       
+      # Крок 4: Запуск тестів
+      # Запускає всі тести згідно з jest.config.js
       - name: Run tests
         run: npm test
       
+      # Крок 5: Збереження HTML звіту для GitHub Pages
+      # Окремий артефакт для deploy-pages.yml workflow
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-report
+          path: reports/html/**
+      
+      # Крок 6: Збереження всіх інших звітів як артефакти
+      # if: always() - зберігає артефакти навіть якщо тести провалилися
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: |
-            reports/html/**
-            reports/junit/**
-            reports/coverage/**
-
+            reports/junit/**     # JUnit XML звіти для CI систем
+            reports/coverage/**  # Coverage звіти про покриття коду
