@@ -4,7 +4,10 @@
   "description": "API Automation Framework using Jest and Axios",
   "main": "index.js",
   "scripts": {
+    "clean-mac-files": "find . -name '._*' -type f -delete 2>/dev/null || true",
+    "pretest": "npm run clean-mac-files && echo 'Starting tests...'",
     "test": "jest",
+    "test:login": "jest tests/token-demo-complete.test.js",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:report": "jest --coverage",

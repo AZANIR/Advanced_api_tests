@@ -22,6 +22,8 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db
+# macOS resource forks
+._*
 
 # Build
 dist/

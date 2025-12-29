@@ -71,10 +71,11 @@ class PostController {
   async createPost(postData, options = {}) {
     try {
       const requiredFields = ['title', 'body', 'userId'];
-      const validation = validators.hasRequiredFields(postData, requiredFields);
+      const isValid = validators.hasRequiredFields(postData, requiredFields);
       
-      if (!validation.valid) {
-        throw new Error(`Missing required fields: ${validation.missing.join(', ')}`);
+      if (!isValid) {
+        const missing = requiredFields.filter(field => !postData.hasOwnProperty(field));
+        throw new Error(`Missing required fields: ${missing.join(', ')}`);
       }
       
       const response = await apiService.createPost(postData);

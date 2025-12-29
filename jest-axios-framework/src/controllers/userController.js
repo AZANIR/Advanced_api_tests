@@ -76,10 +76,11 @@ class UserController {
     try {
       // Валідація входу
       const requiredFields = ['name', 'email'];
-      const validation = validators.hasRequiredFields(userData, requiredFields);
+      const isValid = validators.hasRequiredFields(userData, requiredFields);
       
-      if (!validation.valid) {
-        throw new Error(`Missing required fields: ${validation.missing.join(', ')}`);
+      if (!isValid) {
+        const missing = requiredFields.filter(field => !userData.hasOwnProperty(field));
+        throw new Error(`Missing required fields: ${missing.join(', ')}`);
       }
       
       // Створення користувача

@@ -55,16 +55,18 @@ petstore: {
 
 ## Token Storage
 
-In-memory зберігання токенів:
+Токени зберігаються у файлі `tests/token-storage.json` та в пам'яті:
 
 ```javascript
 tokenStorage: {
-  setToken(key, token, expiresIn),
-  getToken(key),
-  clearToken(key),
-  clearAll()
+  setToken(key, token, expiresIn),  // Зберігає у файл та пам'ять
+  getToken(key),                     // Читає з файлу (для 'reqres') або пам'яті
+  clearToken(key),                   // Видаляє з файлу та пам'яті
+  clearAll()                         // Очищає все
 }
 ```
+
+Файл `token-storage.json` використовується для збереження токена між запусками тестів та для наочності.
 
 ## Використання
 

@@ -1,0 +1,13 @@
+# macOS resource forks
+._*
+
+# Node modules
+node_modules/
+
+# Reports
+reports/
+coverage/
+
+# Logs
+*.log
+
