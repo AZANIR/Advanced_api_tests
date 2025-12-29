@@ -109,17 +109,10 @@ jobs:
           path: jest-axios-framework/reports/coverage/**
           retention-days: 30
 
-       # publish unit test results
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: jest-axios-framework/reports/junit/*.xml
-
       - name: Deploy to pages
         if: always()
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.ACCESS_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: ./jest-axios-framework/reports/html
+          publish_dir: ./jest-axios-framework/reports/html/
