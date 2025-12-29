@@ -68,7 +68,7 @@ jobs:
       # Змінні середовища встановлюються для правильної конфігурації репортерів та API
       - name: Run tests with coverage
         working-directory: jest-axios-framework
-        run: npm run test:login
+        run: npm run test:coverage
         env:
           CI: true # Вказує що запуск в CI середовищі
           GITHUB_ACTIONS: true # Дозволяє репортерам визначити GitHub Actions
