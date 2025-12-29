@@ -71,7 +71,7 @@ function getHtmlReporterConfig(options = {}) {
 function getCiReporterConfig() {
   return getHtmlReporterConfig({
     publicPath: 'reports/html',
-    filename: `report-${Date.now()}.html`,
+    filename: `index.html`,
     openReport: false,
     includeConsoleLog: true,
     metadata: {
