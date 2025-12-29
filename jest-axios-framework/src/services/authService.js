@@ -21,7 +21,13 @@ class AuthService {
       const loginResponse = await axios.post(
         `${config.reqresBaseURL}/login`,
         credentials,
-        { timeout: authConfig.timeout }
+        {
+          timeout: authConfig.timeout,
+          headers: {
+            ...config.defaultHeaders,
+            'User-Agent': config.defaultHeaders['User-Agent']
+          }
+        }
       );
       
       if (loginResponse.data && loginResponse.data.token) {

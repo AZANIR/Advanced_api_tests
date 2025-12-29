@@ -110,11 +110,12 @@ jobs:
     runs-on: ubuntu-latest
     # Запускається завжди після тестів, навіть якщо вони провалилися
     needs: test
+    # Примітка: master виключено через правила захисту середовища GitHub Pages
+    # Деплой дозволено тільки з main та develop гілок
     if: |
       always() &&
       (github.ref == 'refs/heads/main' || 
-       github.ref == 'refs/heads/develop' || 
-       github.ref == 'refs/heads/master') && 
+       github.ref == 'refs/heads/develop') && 
       github.event_name == 'push'
 
     # Необхідні permissions для публікації на GitHub Pages
