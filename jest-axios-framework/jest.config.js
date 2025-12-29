@@ -31,6 +31,15 @@ module.exports = {
       {
         outputDirectory: 'reports/junit',
         outputName: 'junit.xml',
+        suiteName: 'jest tests',
+        // Використовує назву describe блоку як classname
+        classNameTemplate: '{classname}',
+        // Використовує назву тесту (it/test) як name
+        titleTemplate: '{title}',
+        // Роздільник між вкладеними describe блоками
+        ancestorSeparator: ' › ',
+        // Використовує шлях до файлу для suite name
+        usePathForSuiteName: 'true',
       },
     ],
     [
