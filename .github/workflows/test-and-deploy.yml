@@ -67,7 +67,7 @@ jobs:
           CI: true # Вказує що запуск в CI середовищі
           GITHUB_ACTIONS: true # Дозволяє репортерам визначити GitHub Actions
           EMAIL: ${{ secrets.EMAIL }}
-          PASSWORD: ${{ secrets.PASSWORD }} 
+          PASSWORD: ${{ secrets.PASSWORD }}
           BASE_URL: https://jsonplaceholder.typicode.com
           REQRES_BASE_URL: https://reqres.in/api
           PETSTORE_BASE_URL: https://petstore.swagger.io/v2
@@ -122,6 +122,11 @@ jobs:
       contents: read # Читання коду
       pages: write # Запис на GitHub Pages
       id-token: write # Для OIDC автентифікації
+
+    # Налаштування середовища для GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       # Крок 1: Отримання коду
