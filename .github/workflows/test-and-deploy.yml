@@ -59,13 +59,20 @@ jobs:
         run: npm install
 
       # Крок 4: Запуск тестів з покриттям коду
-      # Змінні середовища встановлюються для правильної конфігурації репортерів
+      # Змінні середовища встановлюються для правильної конфігурації репортерів та API
       - name: Run tests with coverage
         working-directory: jest-axios-framework
         run: npm run test:coverage
         env:
           CI: true # Вказує що запуск в CI середовищі
           GITHUB_ACTIONS: true # Дозволяє репортерам визначити GitHub Actions
+          EMAIL: ${{ secrets.EMAIL }}
+          PASSWORD: ${{ secrets.PASSWORD }} 
+          BASE_URL: https://jsonplaceholder.typicode.com
+          REQRES_BASE_URL: https://reqres.in/api
+          PETSTORE_BASE_URL: https://petstore.swagger.io/v2
+          REQUEST_TIMEOUT: 10000
+          ENVIRONMENT: dev
 
       # Крок 5: Збереження HTML звіту як артефакт
       # if: always() - зберігає артефакт навіть якщо тести провалилися
@@ -95,27 +102,16 @@ jobs:
           path: jest-axios-framework/reports/coverage/**
           retention-days: 30
 
-      # Крок 8: Публікація результатів тестів у PR як коментар
-      # Дозволяє бачити результати тестів безпосередньо в Pull Request
-      - name: Publish test results
-        if: always()
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: "jest-axios-framework/reports/junit/**/*.xml"
-          check_name: "Test Results"
-          comment_mode: always # Завжди коментує результати тестів
-          report_individual_runs: true # Показує результати окремих запусків
-
   # ========================================================================
   # Job: Деплой HTML звітів на GitHub Pages
   # ========================================================================
   deploy-pages:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    # Запускається тільки після успішного завершення тестів
+    # Запускається завжди після тестів, навіть якщо вони провалилися
     needs: test
-    # Деплой тільки для main/develop/master branches при push (не для PR)
     if: |
+      always() &&
       (github.ref == 'refs/heads/main' || 
        github.ref == 'refs/heads/develop' || 
        github.ref == 'refs/heads/master') && 
