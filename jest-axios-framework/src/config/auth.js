@@ -11,13 +11,19 @@ const logger = require('../utils/logger');
  * Використовується окремий файл щоб уникнути конфліктів з іншими тестами
  */
 
-// Шлях до файлу з токеном
-const ENV_FILE_PATH = path.join(__dirname, '../../tests/token-storage.json');
+// Функція для отримання шляху до файлу зберігання токенів
+// Використовуємо окремий файл для демо тестів щоб уникнути конфліктів
+// Шлях обчислюється динамічно кожного разу для підтримки зміни TOKEN_STORAGE_FILE в runtime
+function getTokenStoragePath() {
+  const TOKEN_STORAGE_FILE = process.env.TOKEN_STORAGE_FILE || 'token-storage.json';
+  return path.join(__dirname, `../../tests/${TOKEN_STORAGE_FILE}`);
+}
 
 // Функція для читання token-storage.json
 function readEnvFile() {
   try {
-    const data = fs.readFileSync(ENV_FILE_PATH, 'utf8');
+    const filePath = getTokenStoragePath();
+    const data = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(data);
   } catch (error) {
     return { baseUrl: 'https://reqres.in/api', token: null };
@@ -27,18 +33,19 @@ function readEnvFile() {
 // Функція для запису в token-storage.json
 function writeEnvFile(data) {
   try {
+    const filePath = getTokenStoragePath();
     // Використовуємо writeFileSync для синхронного запису (блокуючий запис)
     const jsonData = JSON.stringify(data, null, 4);
-    fs.writeFileSync(ENV_FILE_PATH, jsonData, 'utf8');
+    fs.writeFileSync(filePath, jsonData, 'utf8');
     
     // Перевіряємо що файл дійсно записався та містить правильні дані
-    if (!fs.existsSync(ENV_FILE_PATH)) {
+    if (!fs.existsSync(filePath)) {
       throw new Error('File was not created after write');
     }
     
     // Перевіряємо що дані записалися правильно (опціонально, може бути повільно)
     try {
-      const verifyData = fs.readFileSync(ENV_FILE_PATH, 'utf8');
+      const verifyData = fs.readFileSync(filePath, 'utf8');
       if (verifyData !== jsonData) {
         logger.warn('File content mismatch after write, but continuing...');
       }

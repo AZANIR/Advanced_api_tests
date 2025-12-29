@@ -1,197 +1,138 @@
 const apiService = require('../services/apiService');
-const validators = require('../utils/validators');
-const logger = require('../utils/logger');
+const BaseController = require('./baseController');
 
 /**
  * Post Controller
- * Контролер для роботи з постами
- * Додає валідацію, обробку помилок та комплексні операції
+ * Controller for post operations
+ * Adds validation, error handling and complex operations
  */
-class PostController {
+class PostController extends BaseController {
   /**
-   * Отримати всі пости з валідацією
-   * @param {object} options - Опції запиту
-   * @returns {Promise<object>} Валідована відповідь
+   * Get all posts with validation
+   * @param {object} options - Request options
+   * @returns {Promise<AxiosResponse>} Validated response
    */
   async getAllPosts(options = {}) {
-    try {
+    return this.executeWithErrorHandling(async () => {
       const response = await apiService.getAllPosts();
       
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
+      this.validateArrayResponse(response.data, 'posts');
+      this.logSuccess(`Retrieved ${response.data.length} posts`);
       
-      if (!Array.isArray(response.data)) {
-        throw new Error('Expected array of posts');
-      }
-      
-      logger.info(`Retrieved ${response.data.length} posts`);
       return response;
-    } catch (error) {
-      logger.error('Error getting all posts:', error);
-      throw error;
-    }
+    }, 'getAllPosts');
   }
 
   /**
-   * Отримати пост по ID з валідацією
-   * @param {number} id - ID поста
-   * @returns {Promise<object>} Валідована відповідь
+   * Get post by ID with validation
+   * @param {number} id - Post ID
+   * @returns {Promise<AxiosResponse>} Validated response
    */
   async getPostById(id) {
-    try {
-      if (!id || typeof id !== 'number') {
-        throw new Error('Invalid post ID');
-      }
+    return this.executeWithErrorHandling(async () => {
+      this.validateId(id, 'post');
       
       const response = await apiService.getPostById(id);
       
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
+      this.validateResponseFields(response.data, ['id', 'title', 'body', 'userId']);
+      this.logSuccess(`Retrieved post with ID: ${id}`);
       
-      if (!validators.hasRequiredFields(response.data, ['id', 'title', 'body', 'userId'])) {
-        throw new Error('Post data missing required fields');
-      }
-      
-      logger.info(`Retrieved post with ID: ${id}`);
       return response;
-    } catch (error) {
-      logger.error(`Error getting post ${id}:`, error);
-      throw error;
-    }
+    }, `getPostById(${id})`);
   }
 
   /**
-   * Створити пост з валідацією
-   * @param {object} postData - Дані поста
-   * @param {object} options - Опції
-   * @returns {Promise<object>} Валідована відповідь
+   * Create post with validation
+   * @param {object} postData - Post data
+   * @param {object} options - Options
+   * @returns {Promise<AxiosResponse>} Validated response
    */
   async createPost(postData, options = {}) {
-    try {
-      const requiredFields = ['title', 'body', 'userId'];
-      const isValid = validators.hasRequiredFields(postData, requiredFields);
-      
-      if (!isValid) {
-        const missing = requiredFields.filter(field => !postData.hasOwnProperty(field));
-        throw new Error(`Missing required fields: ${missing.join(', ')}`);
-      }
+    return this.executeWithErrorHandling(async () => {
+      this.validateRequiredFields(postData, ['title', 'body', 'userId']);
       
       const response = await apiService.createPost(postData);
       
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
       
       if (options.verify && response.data.id) {
-        const verifyResponse = await this.getPostById(response.data.id);
-        logger.info('Post creation verified');
+        await this.handleVerify(() => this.getPostById(response.data.id), true);
       }
       
-      logger.info(`Created post with ID: ${response.data.id}`);
+      this.logSuccess(`Created post with ID: ${response.data.id}`);
       return response;
-    } catch (error) {
-      logger.error('Error creating post:', error);
-      throw error;
-    }
+    }, 'createPost');
   }
 
   /**
-   * Оновити пост з валідацією
-   * @param {number} id - ID поста
-   * @param {object} postData - Дані для оновлення
-   * @param {object} options - Опції
-   * @returns {Promise<object>} Валідована відповідь
+   * Update post with validation
+   * @param {number} id - Post ID
+   * @param {object} postData - Data to update
+   * @param {object} options - Options
+   * @returns {Promise<AxiosResponse>} Validated response
    */
   async updatePost(id, postData, options = {}) {
-    try {
-      if (!id || typeof id !== 'number') {
-        throw new Error('Invalid post ID');
-      }
+    return this.executeWithErrorHandling(async () => {
+      this.validateId(id, 'post');
       
       const response = await apiService.updatePost(id, postData);
       
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
       
       if (options.verify) {
-        const verifyResponse = await this.getPostById(id);
-        Object.keys(postData).forEach(key => {
-          if (verifyResponse.data[key] !== postData[key]) {
-            logger.warn(`Field ${key} may not have been updated`);
-          }
-        });
+        await this.handleUpdateVerify(() => this.getPostById(id), postData, true);
       }
       
-      logger.info(`Updated post with ID: ${id}`);
+      this.logSuccess(`Updated post with ID: ${id}`);
       return response;
-    } catch (error) {
-      logger.error(`Error updating post ${id}:`, error);
-      throw error;
-    }
+    }, `updatePost(${id})`);
   }
 
+
   /**
-   * Видалити пост з перевіркою
-   * @param {number} id - ID поста
-   * @param {object} options - Опції
-   * @returns {Promise<object>} Валідована відповідь
+   * Delete post with verification
+   * @param {number} id - Post ID
+   * @param {object} options - Options
+   * @returns {Promise<AxiosResponse>} Validated response
    */
   async deletePost(id, options = {}) {
-    try {
-      if (!id || typeof id !== 'number') {
-        throw new Error('Invalid post ID');
-      }
+    return this.executeWithErrorHandling(async () => {
+      this.validateId(id, 'post');
       
       const response = await apiService.deletePost(id);
       
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
       
       if (options.verify) {
-        try {
-          await this.getPostById(id);
-          logger.warn(`Post ${id} may still exist`);
-        } catch (error) {
-          if (error.response && error.response.status === 404) {
-            logger.info(`Post ${id} successfully deleted`);
-          }
-        }
+        await this.handleDeleteVerify(() => this.getPostById(id), id, true);
       }
       
-      logger.info(`Deleted post with ID: ${id}`);
+      this.logSuccess(`Deleted post with ID: ${id}`);
       return response;
-    } catch (error) {
-      logger.error(`Error deleting post ${id}:`, error);
-      throw error;
-    }
+    }, `deletePost(${id})`);
   }
 
   /**
-   * Отримати пости користувача
-   * @param {number} userId - ID користувача
-   * @returns {Promise<Array>} Масив постів користувача
+   * Get posts by user ID
+   * @param {number} userId - User ID
+   * @returns {Promise<Array>} Array of user posts
    */
   async getPostsByUserId(userId) {
-    try {
+    return this.executeWithErrorHandling(async () => {
       const response = await this.getAllPosts();
       const userPosts = response.data.filter(post => post.userId === userId);
       
-      logger.info(`Retrieved ${userPosts.length} posts for user ${userId}`);
+      this.logSuccess(`Retrieved ${userPosts.length} posts for user ${userId}`);
       return userPosts;
-    } catch (error) {
-      logger.error(`Error getting posts for user ${userId}:`, error);
-      throw error;
-    }
+    }, `getPostsByUserId(${userId})`);
   }
 
   /**
-   * Комплексна операція: створити та перевірити пост
-   * @param {object} postData - Дані поста
-   * @returns {Promise<object>} Результат операції
+   * Complex operation: create and verify post
+   * @param {object} postData - Post data
+   * @returns {Promise<object>} Operation result
    */
   async createAndVerifyPost(postData) {
     const createResponse = await this.createPost(postData, { verify: true });

@@ -2,10 +2,11 @@ const axios = require('axios');
 const config = require('../config/config');
 const authConfig = require('../config/auth');
 const logger = require('../utils/logger');
+const AuthService = require('./authService');
 
 /**
- * HTTP клієнт на базі Axios
- * Надає налаштований Axios instance з interceptors для логування та обробки помилок
+ * HTTP Client based on Axios
+ * Provides configured Axios instance with interceptors for logging and error handling
  */
 const httpClient = axios.create({
   baseURL: config.baseURL,
@@ -13,38 +14,18 @@ const httpClient = axios.create({
   headers: config.defaultHeaders
 });
 
-// Request interceptor - логування вихідних запитів та автоматичне додавання токена
+// Request interceptor - logging outgoing requests and automatic token injection
 httpClient.interceptors.request.use(
   async (request) => {
-    // Автоматичне додавання токена для ReqRes API запитів
     const requestUrl = request.url || '';
-    const isReqResRequest = requestUrl.includes(config.reqresBaseURL) || 
-                           requestUrl.includes('reqres.in');
     
-    if (isReqResRequest) {
+    // Automatic token injection for ReqRes API requests
+    if (AuthService.isReqResRequest(requestUrl)) {
       let token = authConfig.tokenStorage.getToken('reqres');
       
-      // Якщо токен відсутній або прострочений - автоматично логінуємося
+      // If token is missing or expired - perform automatic login
       if (!token) {
-        logger.info('Token not found or expired, attempting automatic login...');
-        try {
-          // Використовуємо apiService напряму щоб уникнути circular dependency
-          const credentials = authConfig.reqres.validCredentials;
-          const loginResponse = await axios.post(
-            `${config.reqresBaseURL}/login`,
-            credentials,
-            { timeout: authConfig.timeout }
-          );
-          
-          if (loginResponse.data && loginResponse.data.token) {
-            authConfig.tokenStorage.setToken('reqres', loginResponse.data.token);
-            token = loginResponse.data.token;
-            logger.info('Automatic login successful, token refreshed');
-          }
-        } catch (error) {
-          logger.warn('Automatic login failed:', error.message);
-          // Продовжуємо без токена - можливо запит не потребує авторизації
-        }
+        token = await AuthService.performAutoLogin();
       }
       
       if (token) {
@@ -63,65 +44,51 @@ httpClient.interceptors.request.use(
   }
 );
 
-// Response interceptor - логування відповідей та автоматичне оновлення токена при 401
+// Response interceptor - logging responses and automatic token refresh on 401
 httpClient.interceptors.response.use(
   (response) => {
     logger.response(response.status, response.data);
     return response;
   },
   async (error) => {
-    // Логування помилок відповіді
+    // Logging response errors
     if (error.response) {
       const status = error.response.status;
       const requestUrl = error.config?.url || '';
-      const isReqResRequest = requestUrl.includes(config.reqresBaseURL) || 
-                             requestUrl.includes('reqres.in');
       
-      // Якщо отримали 401 (Unauthorized) для ReqRes API - спробуємо оновити токен
-      if (status === 401 && isReqResRequest && !error.config._retry) {
+      // If we received 401 (Unauthorized) for ReqRes API - try to refresh token
+      if (status === 401 && AuthService.isReqResRequest(requestUrl) && !error.config._retry) {
         logger.warn('Received 401 Unauthorized, attempting to refresh token...');
         
-        try {
-          // Позначаємо що вже намагалися оновити токен (щоб уникнути циклу)
-          error.config._retry = true;
+        // Mark that we already tried to refresh token (to avoid infinite loop)
+        error.config._retry = true;
+        
+        // Perform automatic login to get new token
+        const newToken = await AuthService.performAutoLogin();
+        
+        if (newToken) {
+          logger.info('Token refreshed successfully, retrying request...');
           
-          // Виконуємо автоматичний логін напряму через axios
-          const credentials = authConfig.reqres.validCredentials;
-          const loginResponse = await axios.post(
-            `${config.reqresBaseURL}/login`,
-            credentials,
-            { timeout: authConfig.timeout }
-          );
+          // Update header with new token
+          error.config.headers = error.config.headers || {};
+          error.config.headers['Authorization'] = `Bearer ${newToken}`;
           
-          if (loginResponse.data && loginResponse.data.token) {
-            authConfig.tokenStorage.setToken('reqres', loginResponse.data.token);
-            const newToken = loginResponse.data.token;
-            
-            logger.info('Token refreshed successfully, retrying request...');
-            
-            // Оновлюємо заголовок з новим токеном
-            error.config.headers = error.config.headers || {};
-            error.config.headers['Authorization'] = `Bearer ${newToken}`;
-            
-            // Повторюємо оригінальний запит з новим токеном
-            return httpClient.request(error.config);
-          }
-        } catch (loginError) {
-          logger.error('Failed to refresh token:', loginError.message);
+          // Retry original request with new token
+          return httpClient.request(error.config);
         }
       }
       
-      // Сервер повернув помилку
+      // Server returned error
       const errorData = error.response.data || {};
       logger.error(
         `Response error: ${status} ${error.response.statusText}`,
         errorData
       );
     } else if (error.request) {
-      // Запит був зроблений, але відповіді не отримано
+      // Request was made but no response received
       logger.error('No response received:', error.message || 'Network error');
     } else {
-      // Помилка при налаштуванні запиту
+      // Error setting up request
       logger.error('Request setup error:', error.message || 'Unknown error');
     }
     return Promise.reject(error);

@@ -15,10 +15,13 @@ const path = require('path');
  * Tests run sequentially to avoid conflicts between each other
  */
 describe('Complete Token Demo Test', () => {
-  const envFilePath = path.join(__dirname, 'token-storage.json');
+  // Use separate token storage file for demo tests to avoid conflicts with other tests
+  const DEMO_TOKEN_FILE = 'token-demo-storage.json';
+  const envFilePath = path.join(__dirname, DEMO_TOKEN_FILE);
   
-  // Clear token only once before all tests
+  // Set environment variable to use separate file
   beforeAll(() => {
+    process.env.TOKEN_STORAGE_FILE = DEMO_TOKEN_FILE;
     authController.clearAllTokens();
     // Restore file to initial state
     const initialData = {
@@ -27,6 +30,11 @@ describe('Complete Token Demo Test', () => {
       tokenExpiresAt: null
     };
     fs.writeFileSync(envFilePath, JSON.stringify(initialData, null, 4), 'utf8');
+  });
+  
+  // Clean up environment variable after tests
+  afterAll(() => {
+    delete process.env.TOKEN_STORAGE_FILE;
   });
 
   // Add delay between tests to avoid rate limiting (429)

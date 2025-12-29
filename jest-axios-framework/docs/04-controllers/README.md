@@ -18,6 +18,8 @@
        │
 ┌──────▼──────────┐
 │  Controllers    │  ← Валідація, retry, комплексні операції
+│  (BaseController│  ← Спільна логіка для всіх контролерів
+│   inheritance)  │
 └──────┬──────────┘
        │
 ┌──────▼──────────┐
@@ -29,7 +31,38 @@
 └─────────────────┘
 ```
 
+## BaseController
+
+Всі контролери (`UserController`, `PostController`) наслідуються від `BaseController`, який надає спільну функціональність:
+
+- ✅ Валідація ID, статусів, обов'язкових полів
+- ✅ Стандартизована обробка помилок
+- ✅ Логування операцій
+- ✅ Методи для verify операцій
+
+Це дозволяє уникнути дублювання коду та забезпечити консистентність між контролерами.
+
 ## Доступні контролери
+
+### BaseController
+
+Базовий контролер зі спільною логікою. Всі інші контролери наслідуються від нього:
+
+```javascript
+const BaseController = require('../../src/controllers/baseController');
+
+// Методи BaseController:
+// - validateId(id, entityName)
+// - validateStatus(status)
+// - validateRequiredFields(data, fields)
+// - validateArrayResponse(response)
+// - validateResponseFields(response, fields)
+// - executeWithErrorHandling(operation, operationName)
+// - logSuccess(operationName, data)
+// - handleVerify(entity, verifyFunction)
+// - handleUpdateVerify(id, updateData, getFunction)
+// - handleDeleteVerify(id, getFunction)
+```
 
 ### UserController
 
@@ -150,15 +183,28 @@ const result = await userController.createAndVerifyUser(userData);
 
 - Credentials для різних API
 - Налаштування retry
-- Керування токенами
+- Керування токенами (in-memory та file-based)
 - Timeout налаштування
+- Динамічне визначення шляху до файлу зберігання токенів
 
 ```javascript
 const authConfig = require('../../src/config/auth');
 
 // Використання конфігурації
 const credentials = authConfig.reqres.validCredentials;
+
+// Робота з токенами
+authConfig.tokenStorage.setToken('reqres', token);
+const token = authConfig.tokenStorage.getToken('reqres');
 ```
+
+### AuthService
+
+Окремий сервіс `src/services/authService.js` для автоматичного логіну та оновлення токенів:
+
+- Використовується в HTTP interceptors для автоматичного оновлення токенів
+- Розв'язує проблему циклічних залежностей
+- Обробляє автоматичний логін при 401 помилках
 
 ## Приклади використання
 

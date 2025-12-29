@@ -1,37 +1,32 @@
 const apiService = require('../services/apiService');
-const validators = require('../utils/validators');
-const logger = require('../utils/logger');
+const BaseController = require('./baseController');
 
 /**
  * User Controller
- * Контролер для роботи з користувачами
- * Додає валідацію, обробку помилок та retry логіку
+ * Controller for user operations
+ * Adds validation, error handling and retry logic
  */
-class UserController {
+class UserController extends BaseController {
   /**
    * Отримати всіх користувачів з валідацією
    * @param {object} options - Опції запиту
    * @returns {Promise<object>} Валідована відповідь
    */
+  /**
+   * Get all users with validation
+   * @param {object} options - Request options
+   * @returns {Promise<AxiosResponse>} Validated response
+   */
   async getAllUsers(options = {}) {
-    try {
+    return this.executeWithErrorHandling(async () => {
       const response = await apiService.getAllUsers();
       
-      // Валідація відповіді
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
+      this.validateArrayResponse(response.data, 'users');
+      this.logSuccess(`Retrieved ${response.data.length} users`);
       
-      if (!Array.isArray(response.data)) {
-        throw new Error('Expected array of users');
-      }
-      
-      logger.info(`Retrieved ${response.data.length} users`);
       return response;
-    } catch (error) {
-      logger.error('Error getting all users:', error);
-      throw error;
-    }
+    }, 'getAllUsers');
   }
 
   /**
@@ -40,30 +35,24 @@ class UserController {
    * @param {object} options - Опції запиту
    * @returns {Promise<object>} Валідована відповідь
    */
+  /**
+   * Get user by ID with validation
+   * @param {number} id - User ID
+   * @param {object} options - Request options
+   * @returns {Promise<AxiosResponse>} Validated response
+   */
   async getUserById(id, options = {}) {
-    try {
-      // Валідація входу
-      if (!id || typeof id !== 'number') {
-        throw new Error('Invalid user ID');
-      }
+    return this.executeWithErrorHandling(async () => {
+      this.validateId(id, 'user');
       
       const response = await apiService.getUserById(id);
       
-      // Валідація відповіді
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
+      this.validateResponseFields(response.data, ['id', 'name', 'email']);
+      this.logSuccess(`Retrieved user with ID: ${id}`);
       
-      if (!validators.hasRequiredFields(response.data, ['id', 'name', 'email'])) {
-        throw new Error('User data missing required fields');
-      }
-      
-      logger.info(`Retrieved user with ID: ${id}`);
       return response;
-    } catch (error) {
-      logger.error(`Error getting user ${id}:`, error);
-      throw error;
-    }
+    }, `getUserById(${id})`);
   }
 
   /**
@@ -72,37 +61,27 @@ class UserController {
    * @param {object} options - Опції (verify: перевірити створення)
    * @returns {Promise<object>} Валідована відповідь
    */
+  /**
+   * Create user with validation and verification
+   * @param {object} userData - User data
+   * @param {object} options - Options (verify: verify creation)
+   * @returns {Promise<AxiosResponse>} Validated response
+   */
   async createUser(userData, options = {}) {
-    try {
-      // Валідація входу
-      const requiredFields = ['name', 'email'];
-      const isValid = validators.hasRequiredFields(userData, requiredFields);
+    return this.executeWithErrorHandling(async () => {
+      this.validateRequiredFields(userData, ['name', 'email']);
       
-      if (!isValid) {
-        const missing = requiredFields.filter(field => !userData.hasOwnProperty(field));
-        throw new Error(`Missing required fields: ${missing.join(', ')}`);
-      }
-      
-      // Створення користувача
       const response = await apiService.createUser(userData);
       
-      // Валідація відповіді
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
       
-      // Перевірка створення (якщо потрібно)
       if (options.verify && response.data.id) {
-        const verifyResponse = await this.getUserById(response.data.id);
-        logger.info('User creation verified');
+        await this.handleVerify(() => this.getUserById(response.data.id), true);
       }
       
-      logger.info(`Created user with ID: ${response.data.id}`);
+      this.logSuccess(`Created user with ID: ${response.data.id}`);
       return response;
-    } catch (error) {
-      logger.error('Error creating user:', error);
-      throw error;
-    }
+    }, 'createUser');
   }
 
   /**
@@ -112,38 +91,28 @@ class UserController {
    * @param {object} options - Опції
    * @returns {Promise<object>} Валідована відповідь
    */
+  /**
+   * Update user with validation
+   * @param {number} id - User ID
+   * @param {object} userData - Data to update
+   * @param {object} options - Options
+   * @returns {Promise<AxiosResponse>} Validated response
+   */
   async updateUser(id, userData, options = {}) {
-    try {
-      // Валідація входу
-      if (!id || typeof id !== 'number') {
-        throw new Error('Invalid user ID');
-      }
+    return this.executeWithErrorHandling(async () => {
+      this.validateId(id, 'user');
       
-      // Оновлення користувача
       const response = await apiService.updateUser(id, userData);
       
-      // Валідація відповіді
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
       
-      // Перевірка оновлення (якщо потрібно)
       if (options.verify) {
-        const verifyResponse = await this.getUserById(id);
-        // Перевірка, що дані оновилися
-        Object.keys(userData).forEach(key => {
-          if (verifyResponse.data[key] !== userData[key]) {
-            logger.warn(`Field ${key} may not have been updated`);
-          }
-        });
+        await this.handleUpdateVerify(() => this.getUserById(id), userData, true);
       }
       
-      logger.info(`Updated user with ID: ${id}`);
+      this.logSuccess(`Updated user with ID: ${id}`);
       return response;
-    } catch (error) {
-      logger.error(`Error updating user ${id}:`, error);
-      throw error;
-    }
+    }, `updateUser(${id})`);
   }
 
   /**
@@ -152,45 +121,33 @@ class UserController {
    * @param {object} options - Опції
    * @returns {Promise<object>} Валідована відповідь
    */
+  /**
+   * Delete user with verification
+   * @param {number} id - User ID
+   * @param {object} options - Options
+   * @returns {Promise<AxiosResponse>} Validated response
+   */
   async deleteUser(id, options = {}) {
-    try {
-      // Валідація входу
-      if (!id || typeof id !== 'number') {
-        throw new Error('Invalid user ID');
-      }
+    return this.executeWithErrorHandling(async () => {
+      this.validateId(id, 'user');
       
-      // Видалення користувача
       const response = await apiService.deleteUser(id);
       
-      // Валідація відповіді
-      if (!validators.isSuccessStatus(response.status)) {
-        throw new Error(`Unexpected status: ${response.status}`);
-      }
+      this.validateStatus(response.status);
       
-      // Перевірка видалення (якщо потрібно)
       if (options.verify) {
-        try {
-          await this.getUserById(id);
-          logger.warn(`User ${id} may still exist`);
-        } catch (error) {
-          if (error.response && error.response.status === 404) {
-            logger.info(`User ${id} successfully deleted`);
-          }
-        }
+        await this.handleDeleteVerify(() => this.getUserById(id), id, true);
       }
       
-      logger.info(`Deleted user with ID: ${id}`);
+      this.logSuccess(`Deleted user with ID: ${id}`);
       return response;
-    } catch (error) {
-      logger.error(`Error deleting user ${id}:`, error);
-      throw error;
-    }
+    }, `deleteUser(${id})`);
   }
 
   /**
-   * Комплексна операція: створити та перевірити користувача
-   * @param {object} userData - Дані користувача
-   * @returns {Promise<object>} Результат операції
+   * Complex operation: create and verify user
+   * @param {object} userData - User data
+   * @returns {Promise<object>} Operation result
    */
   async createAndVerifyUser(userData) {
     const createResponse = await this.createUser(userData, { verify: true });

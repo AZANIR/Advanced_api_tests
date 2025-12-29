@@ -101,8 +101,8 @@ npm run test:report
 ### Створення папок
 
 ```bash
-mkdir -p src/services src/config src/utils src/data
-mkdir -p tests/smoke tests/functional tests/negative tests/integration
+mkdir -p src/services src/config src/utils src/data src/controllers
+mkdir -p tests/smoke tests/functional tests/negative tests/integration tests/controllers tests/helpers tests/examples
 ```
 
 **Структура має виглядати так:**
@@ -117,7 +117,14 @@ jest-axios-framework/
 │   ├── smoke/
 │   ├── functional/
 │   ├── negative/
-│   └── integration/
+│   ├── integration/
+│   ├── controllers/
+│   ├── helpers/
+│   ├── examples/
+│   ├── login.test.js
+│   ├── token-demo-complete.test.js
+│   ├── token-storage.json
+│   └── token-demo-storage.json
 ├── reports/              # Звіти (створються автоматично після запуску тестів)
 │   ├── coverage/        # Звіти про покриття коду
 │   ├── html/            # HTML звіти

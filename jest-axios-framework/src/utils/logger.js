@@ -32,22 +32,26 @@ const logger = {
         if (error.stack) {
           console.error('Stack trace:', error.stack);
         }
-      } else {
-        // Якщо це дані (наприклад, error.response.data)
+      } else if (typeof error === 'object') {
+        // Якщо це об'єкт (наприклад, { stack: '...' })
         try {
-          // Перевіряємо, чи це рядок (HTML, текст)
-          if (typeof error === 'string') {
-            // Обмежуємо довжину для логування
-            const truncated = error.length > 500 ? error.substring(0, 500) + '...' : error;
-            console.error('Error data (string):', truncated);
-          } else {
-            // Спробуємо серіалізувати як JSON
-            console.error('Error data:', JSON.stringify(error, null, 2));
-          }
+          // Спробуємо серіалізувати як JSON, але обмежуємо глибину
+          const safeError = JSON.stringify(error, (key, value) => {
+            // Пропускаємо circular references
+            if (key === 'req' || key === 'res' || key === 'config' || key === 'request' || key === 'response') {
+              return '[Circular]';
+            }
+            return value;
+          }, 2);
+          console.error('Error data:', safeError);
         } catch (e) {
           // Якщо не вдається серіалізувати (circular reference або інша помилка)
-          console.error('Error data (cannot serialize):', typeof error === 'string' ? error.substring(0, 200) : 'Complex object');
+          console.error('Error data (cannot serialize):', 'Complex object with circular references');
         }
+      } else if (typeof error === 'string') {
+        // Якщо це рядок
+        const truncated = error.length > 500 ? error.substring(0, 500) + '...' : error;
+        console.error('Error data (string):', truncated);
       }
     }
   },

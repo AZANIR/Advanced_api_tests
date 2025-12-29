@@ -5,15 +5,15 @@ const logger = require('../utils/logger');
 
 /**
  * Auth Controller
- * Контролер для аутентифікації та авторизації
- * Додає retry логіку, керування токенами та валідацію
+ * Controller for authentication and authorization
+ * Adds retry logic, token management and validation
  */
 class AuthController {
   /**
-   * Логін в ReqRes API з retry логікою
-   * @param {object} credentials - Дані для логіну
-   * @param {object} options - Опції (retry: кількість спроб)
-   * @returns {Promise<object>} Відповідь з токеном
+   * Login to ReqRes API with retry logic
+   * @param {object} credentials - Login credentials
+   * @param {object} options - Options (retry: number of attempts)
+   * @returns {Promise<AxiosResponse>} Response with token
    */
   async login(credentials = null, options = {}) {
     const creds = credentials || authConfig.reqres.validCredentials;
@@ -52,9 +52,9 @@ class AuthController {
   }
 
   /**
-   * Реєстрація в ReqRes API
-   * @param {object} userData - Дані користувача
-   * @returns {Promise<object>} Відповідь
+   * Register in ReqRes API
+   * @param {object} userData - User data
+   * @returns {Promise<AxiosResponse>} Response
    */
   async register(userData) {
     try {
@@ -87,17 +87,17 @@ class AuthController {
   }
 
   /**
-   * Отримати збережений токен
-   * @param {string} key - Ключ токену
-   * @returns {string|null} Токен або null
+   * Get stored token
+   * @param {string} key - Token key
+   * @returns {string|null} Token or null
    */
   getToken(key = 'reqres') {
     return authConfig.tokenStorage.getToken(key);
   }
 
   /**
-   * Очистити токен
-   * @param {string} key - Ключ токену
+   * Clear token
+   * @param {string} key - Token key
    */
   clearToken(key = 'reqres') {
     authConfig.tokenStorage.clearToken(key);
@@ -105,7 +105,7 @@ class AuthController {
   }
 
   /**
-   * Очистити всі токени
+   * Clear all tokens
    */
   clearAllTokens() {
     authConfig.tokenStorage.clearAll();
@@ -113,9 +113,9 @@ class AuthController {
   }
 
   /**
-   * Перевірити валідність токену
-   * @param {string} key - Ключ токену
-   * @returns {boolean} Чи валідний токен
+   * Check if token is valid
+   * @param {string} key - Token key
+   * @returns {boolean} Whether token is valid
    */
   isTokenValid(key = 'reqres') {
     const token = this.getToken(key);
@@ -123,30 +123,31 @@ class AuthController {
   }
 
   /**
-   * Логін з валідними credentials
-   * @returns {Promise<object>} Відповідь
+   * Login with valid credentials
+   * @returns {Promise<AxiosResponse>} Response
    */
   async loginWithValidCredentials() {
     return this.login(authConfig.reqres.validCredentials);
   }
 
   /**
-   * Логін з невалідними credentials (для негативних тестів)
-   * @returns {Promise<object>} Відповідь з помилкою
+   * Login with invalid credentials (for negative tests)
+   * @returns {Promise<AxiosResponse|Error>} Response or error
    */
   async loginWithInvalidCredentials() {
     try {
       return await this.login(authConfig.reqres.invalidCredentials);
     } catch (error) {
-      // Очікувана помилка для негативних тестів
+      // Expected error for negative tests
       return error;
     }
   }
 
   /**
-   * Затримка (helper для retry)
-   * @param {number} ms - Мілісекунди
-   * @returns {Promise}
+   * Delay helper for retry logic
+   * @param {number} ms - Milliseconds
+   * @returns {Promise<void>}
+   * @private
    */
   _delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));

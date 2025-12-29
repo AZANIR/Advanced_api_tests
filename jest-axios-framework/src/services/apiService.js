@@ -11,74 +11,49 @@ class ApiService {
    * GET запит - отримання даних
    * @param {string} url - URL для запиту
    * @param {object} params - Query параметри (опціонально)
-   * @returns {Promise} - Promise з відповіддю
+   * @returns {Promise<AxiosResponse>} Promise з відповіддю
    */
   async get(url, params = {}) {
-    try {
-      const response = await httpClient.get(url, { params });
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    return httpClient.get(url, { params });
   }
   
   /**
    * POST запит - створення ресурсу
    * @param {string} url - URL для запиту
    * @param {object} data - Дані для відправки
-   * @returns {Promise} - Promise з відповіддю
+   * @returns {Promise<AxiosResponse>} Promise з відповіддю
    */
   async post(url, data = {}) {
-    try {
-      const response = await httpClient.post(url, data);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    return httpClient.post(url, data);
   }
   
   /**
    * PUT запит - повне оновлення ресурсу
    * @param {string} url - URL для запиту
    * @param {object} data - Дані для оновлення
-   * @returns {Promise} - Promise з відповіддю
+   * @returns {Promise<AxiosResponse>} Promise з відповіддю
    */
   async put(url, data = {}) {
-    try {
-      const response = await httpClient.put(url, data);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    return httpClient.put(url, data);
   }
   
   /**
    * PATCH запит - часткове оновлення ресурсу
    * @param {string} url - URL для запиту
    * @param {object} data - Дані для часткового оновлення
-   * @returns {Promise} - Promise з відповіддю
+   * @returns {Promise<AxiosResponse>} Promise з відповіддю
    */
   async patch(url, data = {}) {
-    try {
-      const response = await httpClient.patch(url, data);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    return httpClient.patch(url, data);
   }
   
   /**
    * DELETE запит - видалення ресурсу
    * @param {string} url - URL для запиту
-   * @returns {Promise} - Promise з відповіддю
+   * @returns {Promise<AxiosResponse>} Promise з відповіддю
    */
   async delete(url) {
-    try {
-      const response = await httpClient.delete(url);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    return httpClient.delete(url);
   }
   
   // Методи для роботи з користувачами (JSONPlaceholder)
